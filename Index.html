@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<style>
+:root {
+  --bg:#0c0b09; --surface:#151310; --border:#2c2820;
+  --gold:#c8a45a; --gold-lt:#e2c07a; --text:#e4ddd0; --muted:#6a6050;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;min-height:100vh;padding:40px 20px 80px}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.4}
+.app{position:relative;z-index:1;max-width:1400px;margin:0 auto}
+
+.header{text-align:center;margin-bottom:52px;animation:fadeDown .6s ease}
+.header h1{font-family:'Cormorant Garamond',serif;font-size:clamp(2.4rem,5vw,4rem);font-weight:700;color:var(--gold);letter-spacing:.05em}
+.header p{color:var(--muted);font-size:.65rem;letter-spacing:.4em;text-transform:uppercase;margin-top:8px}
+.header-line{width:120px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:14px auto 0}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+
+.workspace{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;align-items:start}
+@media(max-width:1000px){.workspace{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:28px;animation:fadeIn .5s ease}
+.sec-lbl{font-size:.6rem;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);padding-bottom:13px;border-bottom:1px solid var(--border);margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.sec-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
+.mt{margin-top:24px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+
+.fx{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.78rem;padding:9px 12px;border-radius:2px;outline:none;transition:border-color .2s,box-shadow .2s;width:100%}
+.fx:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(200,164,90,.08)}
+.ftx{resize:vertical;min-height:68px;line-height:1.5}
+.fxsel option{background:#1d1a16}
+
+/* invNumber readonly style */
+.inv-num-wrap{position:relative}
+.inv-num-wrap input{padding-right:36px;background:rgba(200,164,90,.04);border-color:rgba(200,164,90,.25);color:var(--gold-lt);font-weight:500;letter-spacing:.05em}
+.inv-num-badge{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);pointer-events:none}
+
+/* Calendar date wrap */
+.date-wrap{position:relative}
+.date-wrap .fx{padding-right:38px;cursor:pointer;caret-color:transparent;user-select:none}
+.date-wrap::after{content:'📅';position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:.85rem;pointer-events:none;opacity:.6}
+
+/* Flatpickr dark theme */
+.flatpickr-calendar{background:#1d1a16!important;border:1px solid #3a3428!important;border-radius:6px!important;box-shadow:0 16px 48px rgba(0,0,0,.75)!important;font-family:'IBM Plex Mono',monospace!important}
+.flatpickr-months{background:#111009!important;border-radius:6px 6px 0 0}
+.flatpickr-month{background:transparent!important}
+.flatpickr-current-month{color:var(--gold)!important;font-family:'Cormorant Garamond',serif!important;font-size:1rem!important;font-weight:600!important}
+.flatpickr-current-month input.cur-year{color:var(--gold)!important;font-family:'IBM Plex Mono',monospace!important}
+.flatpickr-current-month .flatpickr-monthDropdown-months{color:var(--gold)!important;background:#111009!important;font-family:'Cormorant Garamond',serif!important}
+.flatpickr-weekdays{background:#151210!important}
+span.flatpickr-weekday{background:transparent!important;color:var(--muted)!important;font-size:.65rem!important}
+.flatpickr-day{color:#d4c9b8!important;border-radius:3px!important;font-size:.72rem!important}
+.flatpickr-day:hover{background:#2c2820!important;border-color:transparent!important;color:var(--gold-lt)!important}
+.flatpickr-day.selected,.flatpickr-day.selected:hover{background:var(--gold)!important;border-color:var(--gold)!important;color:#0c0b09!important;font-weight:600!important}
+.flatpickr-day.today{border-color:var(--gold)!important;color:var(--gold)!important}
+.flatpickr-day.today:hover{background:#2c2820!important}
+.flatpickr-day.flatpickr-disabled{color:#2c2820!important}
+.flatpickr-months .flatpickr-prev-month svg,.flatpickr-months .flatpickr-next-month svg{fill:var(--gold)!important}
+.flatpickr-months .flatpickr-prev-month:hover svg,.flatpickr-months .flatpickr-next-month:hover svg{fill:var(--gold-lt)!important}
+
+/* ── Address Autocomplete (OpenStreetMap Nominatim) ── */
+.addr-wrap{position:relative}
+.addr-dropdown{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;
+  background:#1d1a16;border:1px solid #3a3428;border-radius:4px;
+  box-shadow:0 10px 32px rgba(0,0,0,.65);z-index:9999;
+  max-height:240px;overflow-y:auto;display:none;
+}
+.addr-dropdown.open{display:block}
+.addr-item{
+  padding:9px 14px;font-size:.72rem;color:#d4c9b8;
+  border-bottom:1px solid #2c2820;cursor:pointer;line-height:1.45;
+  transition:background .12s;
+}
+.addr-item:last-child{border-bottom:none}
+.addr-item:hover,.addr-item.active{background:#2c2820;color:var(--gold-lt)}
+.addr-item strong{color:var(--gold);font-weight:500}
+.addr-spinner{padding:10px 14px;font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:8px}
+.spinner-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);animation:blink .9s infinite alternate}
+.spinner-dot:nth-child(2){animation-delay:.3s}
+.spinner-dot:nth-child(3){animation-delay:.6s}
+@keyframes blink{from{opacity:.2}to{opacity:1}}
+.addr-hint{font-size:.58rem;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:5px}
+.addr-hint::before{content:'🌍';font-size:.7rem}
+
+/* Items */
+.items-head{display:grid;grid-template-columns:1fr 68px 108px 108px 36px;gap:8px;font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.items-head span:nth-child(2),.items-head span:nth-child(3),.items-head span:nth-child(4){text-align:right}
+.item-row{display:grid;grid-template-columns:1fr 68px 108px 108px 36px;gap:8px;align-items:center;margin-bottom:8px;animation:slideIn .18s ease}
+.ii{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.78rem;padding:9px 12px;border-radius:2px;outline:none;transition:border-color .2s,box-shadow .2s;width:100%}
+.ii:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(200,164,90,.08)}
+.ii.num{text-align:right}
+.itot{font-size:.75rem;color:var(--gold);text-align:right;padding:9px 10px;background:rgba(200,164,90,.05);border:1px solid rgba(200,164,90,.12);border-radius:2px;font-weight:500;white-space:nowrap}
+
+/* Buttons */
+.btn{background:none;border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;padding:9px 18px;cursor:pointer;transition:all .2s;border-radius:2px}
+.btn:hover{border-color:var(--gold);color:var(--gold)}
+.btn-gold{background:var(--gold);border-color:var(--gold);color:#0c0b09;font-weight:500}
+.btn-gold:hover{background:var(--gold-lt);border-color:var(--gold-lt);color:#0c0b09}
+.btn-del{background:none;border:1px solid transparent;color:var(--muted);font-family:inherit;font-size:1.2rem;line-height:1;cursor:pointer;padding:5px 9px;border-radius:2px;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.btn-del:hover{color:#e05555;border-color:rgba(224,85,85,.28)}
+.actions{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+
+.adv-box{background:rgba(200,164,90,.04);border:1px solid rgba(200,164,90,.2);border-radius:3px;padding:20px}
+
+/* Preview */
+.preview-panel{position:sticky;top:20px}
+.live-bar{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.live-txt{font-size:.6rem;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.live-badge{font-size:.6rem;color:var(--muted);letter-spacing:.15em;text-transform:uppercase}
+
+/* ═══ Invoice ═══ */
+.invoice{background:#f9f7f3;color:#1a1714;padding:44px 40px;font-family:'IBM Plex Mono',monospace;font-size:.71rem;line-height:1.7;border-radius:2px}
+.inv-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px}
+.inv-co{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:700;color:#1a1714;line-height:1.1}
+.inv-fsub{font-size:.66rem;color:#8a7e6e;margin-top:5px;white-space:pre-line;line-height:1.7}
+.inv-word{font-family:'Cormorant Garamond',serif;font-size:2.8rem;font-weight:700;color:#c8a45a;line-height:1;text-align:right}
+.inv-meta{text-align:right;margin-top:8px;font-size:.67rem;color:#8a7e6e;line-height:2.1}
+.inv-meta .v{color:#1a1714}
+.inv-rule{border:none;border-top:2px solid #1a1714;margin:22px 0}
+.inv-pts{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px}
+.inv-plbl{font-size:.57rem;letter-spacing:.25em;text-transform:uppercase;color:#8a7e6e;margin-bottom:5px}
+.inv-pnm{font-weight:500;color:#1a1714;font-size:.83rem;margin-bottom:2px}
+.inv-psub{font-size:.67rem;color:#8a7e6e;white-space:pre-line;line-height:1.7}
+.inv-tbl{width:100%;border-collapse:collapse;margin-bottom:24px}
+.inv-tbl th{font-size:.57rem;letter-spacing:.2em;text-transform:uppercase;color:#8a7e6e;text-align:left;padding:8px 0;border-bottom:1px solid #1a1714}
+.inv-tbl th.r,.inv-tbl td.r{text-align:right}
+.inv-tbl td{padding:9px 0;border-bottom:1px solid #e8e3da;color:#3a3530;font-size:.71rem}
+.inv-tbl td:first-child{color:#1a1714}
+.inv-bkdn{display:flex;justify-content:flex-end}
+.inv-bk-in{width:294px}
+.inv-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:.69rem;color:#8a7e6e}
+.inv-row .a{color:#3a3530}
+.inv-row.adv{background:rgba(200,164,90,.09);padding:7px 10px;margin:4px -10px;border-left:2px solid #c8a45a}
+.inv-row.adv .l{color:#b8893a;font-weight:500}
+.inv-row.adv .a{color:#b8893a}
+.inv-due{display:flex;justify-content:space-between;align-items:center;padding:13px 0 0;margin-top:7px;border-top:2px solid #1a1714}
+.inv-due .l{font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:700;color:#1a1714}
+.inv-due .a{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:700;color:#1a1714}
+.inv-badge{display:inline-block;font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;background:rgba(200,164,90,.14);color:#c8a45a;border:1px solid rgba(200,164,90,.3);padding:2px 7px;border-radius:2px;margin-left:7px}
+.inv-notes{margin-top:32px;padding-top:18px;border-top:1px solid #ddd8ce}
+.inv-nlbl{font-size:.57rem;letter-spacing:.2em;text-transform:uppercase;color:#8a7e6e;margin-bottom:5px}
+.inv-ntxt{color:#8a7e6e;font-size:.69rem;line-height:1.8}
+.inv-footer{margin-top:36px;text-align:center;font-size:.61rem;color:#c0b8a8;letter-spacing:.1em}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Invoice Generator</h1>
+    <p>Professional &bull; Polished &bull; Print-Ready</p>
+    <div class="header-line"></div>
+  </div>
+
+  <div class="workspace">
+    <!-- ══ FORM ══ -->
+    <div class="panel">
+
+      <div class="sec-lbl">Invoice Details</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Invoice # <span style="color:var(--gold);font-size:.55rem">(auto-generated)</span></label>
+          <div class="inv-num-wrap">
+            <input class="fx" type="text" id="invNumber" readonly title="Auto-generated from today's date">
+            <span class="inv-num-badge">AUTO</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Currency</label>
+          <select class="fx fxsel" id="currency" onchange="updateAllTotals();renderPreview()">
+            <option>USD</option><option>EUR</option><option>GBP</option>
+            <option>INR</option><option>CAD</option><option>AUD</option>
+            <option>JPY</option><option>SGD</option><option>AED</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Issue Date</label>
+          <div class="date-wrap"><input class="fx" type="text" id="invDate" placeholder="Pick a date" readonly></div>
+        </div>
+        <div class="field">
+          <label>Due Date</label>
+          <div class="date-wrap"><input class="fx" type="text" id="dueDate" placeholder="Pick a date" readonly></div>
+        </div>
+      </div>
+
+      <div class="sec-lbl mt">From</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Name / Company</label>
+          <input class="fx" type="text" id="fromName" placeholder="Your Company" oninput="renderPreview()">
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input class="fx" type="email" id="fromEmail" placeholder="you@company.com" oninput="renderPreview()">
+        </div>
+        <div class="field full">
+          <label>Address</label>
+          <div class="addr-wrap">
+            <input class="fx" type="text" id="fromAddr" placeholder="Type to search address…" autocomplete="off" oninput="addrSearch('from')">
+            <div class="addr-dropdown" id="fromDrop"></div>
+          </div>
+          <div class="addr-hint">Powered by OpenStreetMap — free address search, no API key needed</div>
+        </div>
+      </div>
+
+      <div class="sec-lbl mt">Bill To</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Name / Company</label>
+          <input class="fx" type="text" id="toName" placeholder="Client Name" oninput="renderPreview()">
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input class="fx" type="email" id="toEmail" placeholder="client@company.com" oninput="renderPreview()">
+        </div>
+        <div class="field full">
+          <label>Address</label>
+          <div class="addr-wrap">
+            <input class="fx" type="text" id="toAddr" placeholder="Type to search client address…" autocomplete="off" oninput="addrSearch('to')">
+            <div class="addr-dropdown" id="toDrop"></div>
+          </div>
+          <div class="addr-hint">Powered by OpenStreetMap — free address search, no API key needed</div>
+        </div>
+      </div>
+
+      <div class="sec-lbl mt">Line Items</div>
+      <div class="items-head">
+        <span>Description</span><span>Qty</span><span>Rate</span><span>Amount</span><span></span>
+      </div>
+      <div id="itemsContainer"></div>
+      <button class="btn" onclick="addItem()" style="margin-top:10px">+ Add Item</button>
+
+      <div class="sec-lbl mt">Tax &amp; Adjustments</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Tax / GST (%)</label>
+          <input class="fx" type="number" id="taxRate" value="0" min="0" max="100" oninput="renderPreview()">
+        </div>
+        <div class="field">
+          <label>Discount (%)</label>
+          <input class="fx" type="number" id="discountRate" value="0" min="0" max="100" oninput="renderPreview()">
+        </div>
+      </div>
+
+      <div class="sec-lbl mt" style="color:var(--gold-lt)">⬡ Advance Payment</div>
+      <div class="adv-box">
+        <div class="form-grid">
+          <div class="field">
+            <label>Advance Received</label>
+            <input class="fx" type="number" id="advanceAmt" value="0" min="0" step="0.01" placeholder="0.00" oninput="renderPreview()">
+          </div>
+          <div class="field">
+            <label>Payment Reference</label>
+            <input class="fx" type="text" id="advanceRef" placeholder="TXN / Cheque No." oninput="renderPreview()">
+          </div>
+          <div class="field full">
+            <label>Payment Date</label>
+            <div class="date-wrap"><input class="fx" type="text" id="advanceDate" placeholder="Pick a date" readonly></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-lbl mt">Notes &amp; Terms</div>
+      <div class="field">
+        <label>Notes / Payment Terms</label>
+        <textarea class="fx ftx" id="notes" placeholder="Payment due within 30 days. Thank you for your business." oninput="renderPreview()"></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-gold" onclick="printInvoice()">🖨&nbsp; Print / Save PDF</button>
+        <button class="btn" onclick="clearAll()">↺ Clear All</button>
+      </div>
+    </div>
+
+    <!-- ══ PREVIEW ══ -->
+    <div class="preview-panel">
+      <div class="panel" style="padding:0;overflow:hidden">
+        <div class="live-bar">
+          <div class="live-txt"><div class="sdot"></div>Live Preview</div>
+          <div class="live-badge">Print-Ready</div>
+        </div>
+        <div style="padding:16px" id="invoiceWrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  AUTO INVOICE NUMBER from today's date
+//  Format: INV-YYYYMMDD-NNN
+// ══════════════════════════════════════════
+function generateInvNumber() {
+  const now  = new Date();
+  const y    = now.getFullYear();
+  const m    = String(now.getMonth() + 1).padStart(2, '0');
+  const d    = String(now.getDate()).padStart(2, '0');
+  const seq  = String(Math.floor(Math.random() * 900) + 100); // 3-digit suffix
+  return `INV-${y}${m}${d}-${seq}`;
+}
+document.getElementById('invNumber').value = generateInvNumber();
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let items = [{ desc:'', qty:1, rate:0 }];
+
+// ══════════════════════════════════════════
+//  FLATPICKR — calendar dropdowns
+// ══════════════════════════════════════════
+const fpCfg = { dateFormat:'d M Y', disableMobile:true, allowInput:false, onChange:()=>renderPreview() };
+const fpInv = flatpickr('#invDate',     { ...fpCfg, defaultDate: new Date() });
+const fpDue = flatpickr('#dueDate',     fpCfg);
+const fpAdv = flatpickr('#advanceDate', fpCfg);
+
+// ══════════════════════════════════════════
+//  ADDRESS SEARCH — OpenStreetMap Nominatim
+//  Free, no API key required
+// ══════════════════════════════════════════
+const addrTimers = { from: null, to: null };
+const addrCache  = {};
+
+function addrSearch(which) {
+  const input = document.getElementById(which === 'from' ? 'fromAddr' : 'toAddr');
+  const drop  = document.getElementById(which === 'from' ? 'fromDrop' : 'toDrop');
+  const q     = input.value.trim();
+  renderPreview();
+
+  clearTimeout(addrTimers[which]);
+
+  if (q.length < 3) { closeDrop(drop); return; }
+
+  // Debounce 400ms to respect Nominatim rate limit
+  addrTimers[which] = setTimeout(async () => {
+    if (addrCache[q]) { renderDrop(drop, addrCache[q], which); return; }
+
+    drop.innerHTML = `<div class="addr-spinner">
+      <div class="spinner-dot"></div><div class="spinner-dot"></div><div class="spinner-dot"></div>
+      Searching…
+    </div>`;
+    drop.classList.add('open');
+
+    try {
+      const res  = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(q)}`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      addrCache[q] = data;
+      renderDrop(drop, data, which);
+    } catch {
+      drop.innerHTML = `<div class="addr-item" style="color:var(--muted)">Could not reach search service</div>`;
+    }
+  }, 400);
+}
+
+function renderDrop(drop, results, which) {
+  if (!results.length) {
+    drop.innerHTML = `<div class="addr-item" style="color:var(--muted)">No results — try a different query</div>`;
+    drop.classList.add('open');
+    return;
+  }
+  drop.innerHTML = results.map((r, i) => {
+    const main = r.display_name.split(',').slice(0, 2).join(',');
+    const rest = r.display_name.split(',').slice(2).join(',').trim();
+    return `<div class="addr-item" data-idx="${i}" data-which="${which}">
+      <strong>${esc(main)}</strong>${rest ? `<br><span style="font-size:.65rem;color:var(--muted)">${esc(rest)}</span>` : ''}
+    </div>`;
+  }).join('');
+  drop.classList.add('open');
+
+  // Store results on element for click handler
+  drop._results = results;
+
+  drop.querySelectorAll('.addr-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const r = drop._results[parseInt(el.dataset.idx)];
+      const inputId = el.dataset.which === 'from' ? 'fromAddr' : 'toAddr';
+      document.getElementById(inputId).value = r.display_name;
+      closeDrop(drop);
+      renderPreview();
+    });
+  });
+}
+
+function closeDrop(drop) { drop.classList.remove('open'); drop.innerHTML = ''; }
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', e => {
+  ['fromDrop','toDrop'].forEach(id => {
+    const drop = document.getElementById(id);
+    const wrap = drop.closest('.addr-wrap');
+    if (!wrap.contains(e.target)) closeDrop(drop);
+  });
+});
+
+// ══════════════════════════════════════════
+//  ITEMS — DOM built once, never innerHTML-reset
+// ══════════════════════════════════════════
+function buildItemRow(i) {
+  const row = document.createElement('div');
+  row.className = 'item-row'; row.id = 'irow-' + i;
+
+  const desc = document.createElement('input');
+  desc.type = 'text'; desc.className = 'ii'; desc.placeholder = 'Item description';
+  desc.value = items[i].desc;
+  desc.addEventListener('input', e => { items[i].desc = e.target.value; renderPreview(); });
+
+  const qty = document.createElement('input');
+  qty.type = 'number'; qty.className = 'ii num'; qty.placeholder = '1'; qty.min = '0';
+  qty.value = items[i].qty;
+  qty.addEventListener('input', e => { items[i].qty = e.target.value; refreshRowTotal(i); renderPreview(); });
+
+  const rate = document.createElement('input');
+  rate.type = 'number'; rate.className = 'ii num'; rate.placeholder = '0.00'; rate.min = '0'; rate.step = '0.01';
+  rate.value = items[i].rate;
+  rate.addEventListener('input', e => { items[i].rate = e.target.value; refreshRowTotal(i); renderPreview(); });
+
+  const tot = document.createElement('div');
+  tot.className = 'itot'; tot.id = 'itot-' + i;
+  tot.textContent = fmt(rowTotal(i));
+
+  const del = document.createElement('button');
+  del.className = 'btn-del'; del.innerHTML = '&times;'; del.title = 'Remove';
+  del.addEventListener('click', () => removeItem(i));
+
+  row.append(desc, qty, rate, tot, del);
+  return row;
+}
+
+function renderItemsDOM() {
+  const c = document.getElementById('itemsContainer');
+  c.innerHTML = '';
+  items.forEach((_, i) => c.appendChild(buildItemRow(i)));
+}
+
+function rowTotal(i)      { return (parseFloat(items[i].qty)||0) * (parseFloat(items[i].rate)||0); }
+function refreshRowTotal(i){ const el=document.getElementById('itot-'+i); if(el) el.textContent=fmt(rowTotal(i)); }
+function updateAllTotals() { items.forEach((_,i)=>refreshRowTotal(i)); }
+
+function addItem() {
+  items.push({ desc:'', qty:1, rate:0 });
+  const idx = items.length - 1;
+  const row = buildItemRow(idx);
+  document.getElementById('itemsContainer').appendChild(row);
+  renderPreview();
+  row.querySelector('input').focus();
+}
+
+function removeItem(i) {
+  if (items.length === 1) return;
+  items.splice(i, 1);
+  renderItemsDOM();
+  renderPreview();
+}
+
+// ══════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════
+function fmt(n) {
+  const cur = document.getElementById('currency').value;
+  try { return new Intl.NumberFormat('en-US',{style:'currency',currency:cur,minimumFractionDigits:2}).format(n); }
+  catch { return `${cur} ${parseFloat(n).toFixed(2)}`; }
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function gv(id) { return document.getElementById(id)?.value || ''; }
+
+// ══════════════════════════════════════════
+//  CALCULATIONS
+// ══════════════════════════════════════════
+function calc() {
+  const sub  = items.reduce((s,_,i) => s + rowTotal(i), 0);
+  const dr   = parseFloat(gv('discountRate')) || 0;
+  const tr   = parseFloat(gv('taxRate'))      || 0;
+  const adv  = Math.max(0, parseFloat(gv('advanceAmt')) || 0);
+  const dAmt = sub * dr / 100;
+  const aft  = sub - dAmt;
+  const tAmt = aft * tr / 100;
+  const tot  = aft + tAmt;
+  const due  = Math.max(0, tot - adv);
+  return { sub, dr, dAmt, tr, tAmt, tot, adv, due };
+}
+
+// ══════════════════════════════════════════
+//  RENDER PREVIEW
+// ══════════════════════════════════════════
+function renderPreview() {
+  updateAllTotals();
+  const c = calc();
+
+  const rows = items.map((it,i) => `<tr>
+    <td>${esc(it.desc)||'—'}</td>
+    <td class="r">${esc(String(it.qty))}</td>
+    <td class="r">${fmt(parseFloat(it.rate)||0)}</td>
+    <td class="r">${fmt(rowTotal(i))}</td>
+  </tr>`).join('');
+
+  let bd = `<div class="inv-row"><span class="l">Subtotal</span><span class="a">${fmt(c.sub)}</span></div>`;
+
+  if (c.dr > 0)
+    bd += `<div class="inv-row"><span class="l">Discount (${c.dr}%)</span><span class="a" style="color:#c0503a">− ${fmt(c.dAmt)}</span></div>`;
+
+  if (c.tr > 0)
+    bd += `<div class="inv-row"><span class="l">Tax / GST (${c.tr}%)</span><span class="a">${fmt(c.tAmt)}</span></div>`;
+
+  bd += `<div class="inv-row" style="border-top:1px solid #ddd8ce;margin-top:4px;padding-top:10px;">
+    <span class="l" style="color:#1a1714;font-weight:500">Invoice Total</span>
+    <span class="a" style="color:#1a1714;font-weight:500">${fmt(c.tot)}</span>
+  </div>`;
+
+  if (c.adv > 0) {
+    const ref   = gv('advanceRef')  ? ` · ${esc(gv('advanceRef'))}`  : '';
+    const aDate = gv('advanceDate') ? ` · ${esc(gv('advanceDate'))}` : '';
+    bd += `<div class="inv-row adv">
+      <span class="l">Advance Paid${ref}${aDate}</span>
+      <span class="a">− ${fmt(c.adv)}</span>
+    </div>`;
+  }
+
+  const badge = c.adv > 0 ? `<span class="inv-badge">Partial</span>` : '';
+  const stClr = (c.due===0&&c.adv>0) ? '#4a7c59' : '#c8a45a';
+  const stTxt = (c.due===0&&c.adv>0) ? 'Paid' : c.adv>0 ? 'Partially Paid' : 'Unpaid';
+  const notes = gv('notes');
+
+  document.getElementById('invoiceWrap').innerHTML = `
+  <div class="invoice">
+    <div class="inv-hdr">
+      <div>
+        <div class="inv-co">${esc(gv('fromName')||'Your Company')}</div>
+        <div class="inv-fsub">${gv('fromEmail')?esc(gv('fromEmail'))+'\n':''}${esc(gv('fromAddr'))}</div>
+      </div>
+      <div>
+        <div class="inv-word">INVOICE</div>
+        <div class="inv-meta">
+          <div>No.&nbsp;&nbsp;<span class="v">${esc(gv('invNumber'))}</span></div>
+          ${gv('invDate') ? `<div>Date&nbsp;<span class="v">${esc(gv('invDate'))}</span></div>` : ''}
+          ${gv('dueDate') ? `<div>Due&nbsp;&nbsp;<span class="v">${esc(gv('dueDate'))}</span></div>` : ''}
+        </div>
+      </div>
+    </div>
+    <hr class="inv-rule">
+    <div class="inv-pts">
+      <div>
+        <div class="inv-plbl">Bill To</div>
+        <div class="inv-pnm">${esc(gv('toName')||'Client Name')}</div>
+        <div class="inv-psub">${gv('toEmail')?esc(gv('toEmail'))+'\n':''}${esc(gv('toAddr'))}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="inv-plbl">Status</div>
+        <div class="inv-pnm" style="color:${stClr}">${stTxt}</div>
+      </div>
+    </div>
+    <table class="inv-tbl">
+      <thead><tr>
+        <th>Description</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="inv-bkdn">
+      <div class="inv-bk-in">
+        ${bd}
+        <div class="inv-due">
+          <span class="l">Balance Due ${badge}</span>
+          <span class="a">${fmt(c.due)}</span>
+        </div>
+      </div>
+    </div>
+    ${notes ? `<div class="inv-notes">
+      <div class="inv-nlbl">Notes &amp; Terms</div>
+      <div class="inv-ntxt">${esc(notes)}</div>
+    </div>` : ''}
+    <div class="inv-footer">Thank you for your business</div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════
+//  PRINT / SAVE PDF
+// ══════════════════════════════════════════
+function printInvoice() {
+  const content = document.getElementById('invoiceWrap').innerHTML;
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head>
+  <meta charset="UTF-8">
+  <title>Invoice ${gv('invNumber')}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#f9f7f3;font-family:'IBM Plex Mono',monospace}
+    .invoice{background:#f9f7f3;color:#1a1714;padding:60px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;line-height:1.7;max-width:860px;margin:0 auto}
+    .inv-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px}
+    .inv-co{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#1a1714;line-height:1.1}
+    .inv-fsub{font-size:.68rem;color:#8a7e6e;margin-top:6px;white-space:pre-line;line-height:1.7}
+    .inv-word{font-family:'Cormorant Garamond',serif;font-size:3rem;font-weight:700;color:#c8a45a;line-height:1;text-align:right}
+    .inv-meta{text-align:right;margin-top:8px;font-size:.68rem;color:#8a7e6e;line-height:2}
+    .inv-meta .v{color:#1a1714}
+    .inv-rule{border:none;border-top:2px solid #1a1714;margin:24px 0}
+    .inv-pts{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:36px}
+    .inv-plbl{font-size:.58rem;letter-spacing:.25em;text-transform:uppercase;color:#8a7e6e;margin-bottom:6px}
+    .inv-pnm{font-weight:500;color:#1a1714;font-size:.85rem;margin-bottom:2px}
+    .inv-psub{font-size:.68rem;color:#8a7e6e;white-space:pre-line;line-height:1.7}
+    .inv-tbl{width:100%;border-collapse:collapse;margin-bottom:28px}
+    .inv-tbl th{font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:#8a7e6e;text-align:left;padding:8px 0;border-bottom:1px solid #1a1714}
+    .inv-tbl th.r,.inv-tbl td.r{text-align:right}
+    .inv-tbl td{padding:10px 0;border-bottom:1px solid #e8e3da;color:#3a3530;font-size:.72rem}
+    .inv-tbl td:first-child{color:#1a1714}
+    .inv-bkdn{display:flex;justify-content:flex-end}
+    .inv-bk-in{width:294px}
+    .inv-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:.7rem;color:#8a7e6e}
+    .inv-row .l{} .inv-row .a{color:#3a3530}
+    .inv-row.adv{background:rgba(200,164,90,.1);padding:8px 10px;margin:4px -10px;border-left:2px solid #c8a45a}
+    .inv-row.adv .l{color:#b8893a;font-weight:500} .inv-row.adv .a{color:#b8893a}
+    .inv-due{display:flex;justify-content:space-between;align-items:center;padding:14px 0 0;margin-top:8px;border-top:2px solid #1a1714}
+    .inv-due .l{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:700;color:#1a1714}
+    .inv-due .a{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:700;color:#1a1714}
+    .inv-badge{display:inline-block;font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;background:rgba(200,164,90,.15);color:#c8a45a;border:1px solid rgba(200,164,90,.3);padding:2px 7px;border-radius:2px;margin-left:7px}
+    .inv-notes{margin-top:36px;padding-top:20px;border-top:1px solid #ddd8ce}
+    .inv-nlbl{font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:#8a7e6e;margin-bottom:6px}
+    .inv-ntxt{color:#8a7e6e;font-size:.7rem;line-height:1.8}
+    .inv-footer{margin-top:40px;text-align:center;font-size:.62rem;color:#c0b8a8;letter-spacing:.1em}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style>
+  </head><body>${content}</body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(), 900);
+}
+
+// ══════════════════════════════════════════
+//  CLEAR ALL
+// ══════════════════════════════════════════
+function clearAll() {
+  if (!confirm('Clear all fields and start fresh?')) return;
+  ['fromName','fromEmail','fromAddr','toName','toEmail','toAddr','notes','advanceRef']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('invNumber').value    = generateInvNumber();
+  document.getElementById('currency').value     = 'USD';
+  document.getElementById('taxRate').value      = '0';
+  document.getElementById('discountRate').value = '0';
+  document.getElementById('advanceAmt').value   = '0';
+  ['fromDrop','toDrop'].forEach(id=>closeDrop(document.getElementById(id)));
+  fpDue.clear(); fpAdv.clear();
+  fpInv.setDate(new Date());
+  items = [{ desc:'', qty:1, rate:0 }];
+  renderItemsDOM();
+  renderPreview();
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+renderItemsDOM();
+renderPreview();
+</script>
+</body>
+</html>
